@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Firmware credentials and PlatformIO build artifacts
+**/secrets.h
+firmware/.pio/
+firmware/.vscode/
+

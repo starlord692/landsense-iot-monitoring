@@ -17,14 +17,27 @@
 #include <ArduinoJson.h>
 #include <DHT.h>
 
+#if __has_include("include/secrets.h")
+  #include "include/secrets.h"
+#elif __has_include("secrets.h")
+  #include "secrets.h"
+#endif
+
 // ==========================================
 // 1. Wi-Fi & Backend Server Configuration
 // ==========================================
-const char* WIFI_SSID     = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+#ifndef WIFI_SSID
+  #define WIFI_SSID "motorola edge 50 neo"
+#endif
+#ifndef WIFI_PASSWORD
+  #define WIFI_PASSWORD ""
+#endif
+
+const char* wifi_ssid     = WIFI_SSID;
+const char* wifi_password = WIFI_PASSWORD;
 
 // IP address of your laptop running the FastAPI backend:
-const char* SERVER_HOST   = "192.168.1.2";
+const char* SERVER_HOST   = "10.83.254.39";
 const int   SERVER_PORT   = 8000;
 const char* API_ENDPOINT  = "/api/v1/readings";
 
@@ -67,7 +80,11 @@ void connectToWiFi() {
 
   Serial.println("\n[WiFi] Connecting to network: " + String(WIFI_SSID));
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  if (strlen(WIFI_PASSWORD) > 0) {
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  } else {
+    WiFi.begin(WIFI_SSID);
+  }
 
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 25) {
@@ -133,13 +150,14 @@ void sendTelemetry() {
   Serial.println(" - ADXL345      : DISABLED (0.0° tilt, 0.0g vibration)");
 
   if (WiFi.status() == WL_CONNECTED) {
+    WiFiClient client;
     HTTPClient http;
     String url = "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + String(API_ENDPOINT);
 
-    http.begin(url);
+    http.begin(client, url);
     http.addHeader("Content-Type", "application/json");
 
-    StaticJsonDocument<256> doc;
+    JsonDocument doc;
     doc["node_id"]       = NODE_ID;
     doc["rainfall"]      = rainRate;
     doc["soil_moisture"] = soilMoisturePct;
@@ -180,3 +198,4 @@ void loop() {
 
   delay(50);
 }
+
