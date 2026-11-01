@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { MainOverviewGrid } from './components/overview/MainOverviewGrid';
@@ -10,61 +10,99 @@ import { RecentAlertsList } from './components/alerts/RecentAlertsList';
 import { MonitoringLocationMap } from './components/map/MonitoringLocationMap';
 
 import { sensorService } from './services/sensorService';
-import { riskService } from './services/riskService';
 import { alertService } from './services/alertService';
 import {
   MOCK_NODES,
   MOCK_RISK_ASSESSMENT,
   MOCK_TELEMETRY_HISTORY,
   MOCK_ALERTS,
+  MOCK_PRIMARY_READING,
 } from './services/mockData';
-import type { SensorNode } from './types/sensor';
+import type { SensorNode, SensorReading } from './types/sensor';
 import type { RiskAssessment } from './types/risk';
 import type { Alert } from './types/alert';
 import type { TelemetryPoint } from './services/mockData';
-import { Server, ShieldCheck, Sliders } from 'lucide-react';
+import { Server, Sliders, Radio } from 'lucide-react';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
-  const [selectedNodeId, setSelectedNodeId] = useState<string>('node-001');
+  const [selectedNodeId, setSelectedNodeId] = useState<string>('NODE-001');
 
-  // Application Data States initialized with realistic baseline data
+  // Application Data States
   const [nodes, setNodes] = useState<SensorNode[]>(MOCK_NODES);
   const [currentRisk, setCurrentRisk] = useState<RiskAssessment>(MOCK_RISK_ASSESSMENT);
+  const [liveReading, setLiveReading] = useState<SensorReading>(MOCK_PRIMARY_READING);
   const [telemetryHistory, setTelemetryHistory] = useState<TelemetryPoint[]>(MOCK_TELEMETRY_HISTORY);
   const [alerts, setAlerts] = useState<Alert[]>(MOCK_ALERTS);
-  const [lastUpdated, setLastUpdated] = useState<string>('12:48 PM');
+  const [lastUpdated, setLastUpdated] = useState<string>('Just now');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  // Live Hardware Connectivity States
+  const [isBackendConnected, setIsBackendConnected] = useState<boolean>(false);
+  const [isRealHardware, setIsRealHardware] = useState<boolean>(false);
+  const [secondsSincePacket, setSecondsSincePacket] = useState<number>(9999);
 
   // Derive the active node and hardware sensors dynamically
   const selectedNode = nodes.find(n => n.id === selectedNodeId || n.code === selectedNodeId) || nodes[0];
-  const hardwareSensors = sensorService.getHardwareSensors(selectedNode);
+  const hardwareSensors = sensorService.getHardwareSensors(selectedNode, liveReading, isRealHardware);
 
-  // Load / refresh telemetry & diagnostics
-  const refreshDashboardData = useCallback(async () => {
-    setIsRefreshing(true);
+  // Function to poll live hardware telemetry every 3 seconds
+  const fetchLiveTelemetry = useCallback(async () => {
     try {
-      const [fetchedNodes, fetchedRisk, fetchedHistory, fetchedAlerts] = await Promise.all([
-        sensorService.getSensorNodes(),
-        riskService.getCurrentRisk(),
-        sensorService.getTelemetryHistory(selectedNodeId),
-        alertService.getAlerts(),
-      ]);
+      const data = await sensorService.getLiveTelemetry(selectedNodeId);
+      setIsBackendConnected(data.isBackendConnected);
+      setIsRealHardware(data.isRealHardware);
+      setSecondsSincePacket(data.secondsAgo);
+      setLiveReading(data.reading);
+      setCurrentRisk(data.risk);
 
-      setNodes(fetchedNodes);
-      setCurrentRisk(fetchedRisk);
-      setTelemetryHistory(fetchedHistory);
-      setAlerts(fetchedAlerts);
+      if (data.history && data.history.length > 0) {
+        setTelemetryHistory(data.history);
+      }
 
       const now = new Date();
       setLastUpdated(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     } catch (err) {
-      console.error('Error refreshing dashboard data:', err);
+      console.warn('Telemetry poll error:', err);
+    }
+  }, [selectedNodeId]);
+
+  // Set up 3-second live polling loop
+  useEffect(() => {
+    let isMounted = true;
+
+    const runPoll = async () => {
+      if (!isMounted) return;
+      await fetchLiveTelemetry();
+    };
+
+    runPoll();
+    const interval = setInterval(runPoll, 3000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [fetchLiveTelemetry]);
+
+  // Initial fetch for nodes & alerts list
+  const refreshStaticMetadata = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const [fetchedNodes, fetchedAlerts] = await Promise.all([
+        sensorService.getSensorNodes(),
+        alertService.getAlerts(),
+      ]);
+      setNodes(fetchedNodes);
+      setAlerts(fetchedAlerts);
+      await fetchLiveTelemetry();
+    } catch (err) {
+      console.error('Error refreshing metadata:', err);
     } finally {
       setIsRefreshing(false);
     }
-  }, [selectedNodeId]);
+  }, [fetchLiveTelemetry]);
 
   // Handle alert acknowledgment
   const handleAcknowledgeAlert = async (alertId: string) => {
@@ -74,21 +112,6 @@ export function App() {
     } catch (err) {
       console.error('Failed to acknowledge alert:', err);
     }
-  };
-
-  const primaryReading = selectedNode?.latestReading || {
-    id: 'fallback',
-    nodeId: 'NODE-001',
-    timestamp: 'Now',
-    rainfall: 42.5,
-    soilMoisture: 78.2,
-    tilt: { x: 1.2, y: 0.9, magnitude: 1.5 },
-    vibration: 'ELEVATED',
-    vibrationMagnitude: 0.42,
-    temperature: 27.4,
-    humidity: 84.0,
-    batteryLevel: 88.0,
-    signalQuality: 'EXCELLENT',
   };
 
   const unreadAlertsCount = alerts.filter(a => !a.isAcknowledged && (a.severity === 'CRITICAL' || a.severity === 'WARNING')).length;
@@ -114,19 +137,22 @@ export function App() {
           onSelectNode={(id) => setSelectedNodeId(id)}
           lastUpdated={lastUpdated}
           isRefreshing={isRefreshing}
-          onRefresh={refreshDashboardData}
+          onRefresh={refreshStaticMetadata}
           unreadAlertsCount={unreadAlertsCount}
+          isBackendConnected={isBackendConnected}
+          isRealHardware={isRealHardware}
+          secondsSincePacket={secondsSincePacket}
         />
 
         {/* Dynamic Main Dashboard Body */}
         <main className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1 max-w-[1440px] w-full mx-auto">
-          {/* Tab 1: Primary Overview (matches the layout of the reference image) */}
+          {/* Tab 1: Primary Overview */}
           {activeTab === 'overview' && (
             <div className="space-y-8">
               {/* Reference-Inspired Hero Layout */}
               <MainOverviewGrid
                 currentRisk={currentRisk}
-                reading={primaryReading}
+                reading={liveReading}
                 nodes={nodes}
                 alerts={alerts}
                 telemetryHistory={telemetryHistory}
@@ -134,10 +160,11 @@ export function App() {
                 onSelectNode={(id) => setSelectedNodeId(id)}
                 onAcknowledgeAlert={handleAcknowledgeAlert}
                 onNavigateTab={(tab) => setActiveTab(tab)}
+                isRealHardware={isRealHardware}
               />
 
               {/* Environmental Monitoring Cards */}
-              <EnvironmentalGrid reading={primaryReading} />
+              <EnvironmentalGrid reading={liveReading} />
 
               {/* Risk Analysis Card */}
               <RiskMonitoringCard risk={currentRisk} />
@@ -170,7 +197,7 @@ export function App() {
           {/* Tab 2: Live Monitoring Focused View */}
           {activeTab === 'monitoring' && (
             <div className="space-y-6">
-              <EnvironmentalGrid reading={primaryReading} />
+              <EnvironmentalGrid reading={liveReading} />
               <TelemetryCharts data={telemetryHistory} />
             </div>
           )}
@@ -223,29 +250,39 @@ export function App() {
                   <Sliders className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">LANDSense System Settings & Diagnostics</h3>
-                  <p className="text-xs text-slate-400">Microcontroller calibration, API endpoint configuration, and deployment parameters</p>
+                  <h3 className="text-base font-bold text-slate-900">LANDSense Hardware & Connectivity Settings</h3>
+                  <p className="text-xs text-slate-400">ESP32 telemetry status, FastAPI live ingestion, and polling intervals</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
                 <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
-                  <div className="flex items-center gap-2 font-bold text-slate-800">
-                    <Server className="w-4 h-4 text-emerald-600" />
-                    <span>FastAPI Backend Integration</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-slate-800">
+                      <Server className="w-4 h-4 text-emerald-600" />
+                      <span>FastAPI Backend Telemetry</span>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-full font-bold text-[11px] ${isBackendConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                      {isBackendConnected ? 'Connected (Port 8000)' : 'Disconnected'}
+                    </span>
                   </div>
                   <p className="text-slate-500 leading-relaxed">
-                    Connected to <code className="px-1.5 py-0.5 rounded bg-white text-emerald-700 font-mono">http://localhost:8000/api/v1</code>. Toggle <code className="px-1.5 py-0.5 rounded bg-white text-slate-700 font-mono">USE_MOCK_DATA = false</code> in <code className="px-1.5 py-0.5 rounded bg-white text-slate-700 font-mono">apiConfig.ts</code> to direct all requests directly to the live Python server.
+                    Live endpoint: <code className="px-1.5 py-0.5 rounded bg-white text-emerald-700 font-mono">http://localhost:8000/api/v1/readings/latest</code>. Polling rate: <strong className="text-slate-800">every 3 seconds</strong>.
                   </p>
                 </div>
 
                 <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
-                  <div className="flex items-center gap-2 font-bold text-slate-800">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                    <span>Hardware Sensor Calibration</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-slate-800">
+                      <Radio className="w-4 h-4 text-emerald-600" />
+                      <span>ESP32 Hardware Stream</span>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-full font-bold text-[11px] ${isRealHardware ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                      {isRealHardware ? `Live (${secondsSincePacket}s ago)` : 'Awaiting Packets'}
+                    </span>
                   </div>
                   <p className="text-slate-500 leading-relaxed">
-                    FC-37 Rain Gauge trigger threshold: <strong className="text-slate-800">&gt; 35.0 mm/hr</strong>. Capacitive Soil Moisture threshold: <strong className="text-slate-800">&gt; 70%</strong>. ADXL345 Accelerometer status: <span className="font-bold text-amber-700">Hardware Standby (Mocked on I2C 0x53)</span>.
+                    Rain sensor (GPIO 34), Soil moisture probe (GPIO 35), and DHT11 (GPIO 25). ADXL345 accelerometer status: <strong className="text-amber-700 font-semibold">Disabled (Hardware Standby)</strong>.
                   </p>
                 </div>
               </div>
@@ -259,7 +296,7 @@ export function App() {
             <strong className="text-slate-700 font-bold">LANDSense</strong> &bull; IoT-Based Landslide Monitoring & Early Warning System
           </div>
           <div className="mt-2 sm:mt-0 font-mono text-[11px] text-slate-400">
-            Academic Prototype Release v2.0 &bull; Light Modern UI
+            ESP32 Active Polling (3s Interval) &bull; FastAPI Connected
           </div>
         </footer>
       </div>

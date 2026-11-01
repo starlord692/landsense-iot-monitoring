@@ -6,6 +6,7 @@ import {
   Clock,
   ChevronDown,
   MapPin,
+  Radio,
 } from 'lucide-react';
 import type { SensorNode } from '../../types/sensor';
 
@@ -18,6 +19,9 @@ interface HeaderProps {
   isRefreshing: boolean;
   onRefresh: () => void;
   unreadAlertsCount: number;
+  isBackendConnected: boolean;
+  isRealHardware: boolean;
+  secondsSincePacket: number;
 }
 
 export const Header = ({
@@ -29,6 +33,9 @@ export const Header = ({
   isRefreshing,
   onRefresh,
   unreadAlertsCount,
+  isBackendConnected,
+  isRealHardware,
+  secondsSincePacket,
 }: HeaderProps) => {
   const selectedNode = nodes.find(n => n.id === selectedNodeId || n.code === selectedNodeId) || nodes[0];
 
@@ -54,8 +61,27 @@ export const Header = ({
         </div>
       </div>
 
-      {/* Right: Search, Station Selector, Alerts, Profile & Sync */}
+      {/* Right: Search, Live Hardware Badge, Station Selector, Alerts, Profile & Sync */}
       <div className="flex flex-wrap items-center gap-3">
+        {/* Real Hardware vs Mock Status Indicator */}
+        {isRealHardware ? (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800 shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+            <Radio className="w-3.5 h-3.5 text-emerald-600" />
+            <span>ESP32 LIVE ({secondsSincePacket}s ago)</span>
+          </div>
+        ) : isBackendConnected ? (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-800">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <span>BACKEND ONLINE (Awaiting ESP32)</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-xs font-medium text-slate-600">
+            <span className="w-2 h-2 rounded-full bg-slate-400" />
+            <span>MOCK DATA MODE</span>
+          </div>
+        )}
+
         {/* Search Field */}
         <div className="relative hidden xl:block">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -66,7 +92,7 @@ export const Header = ({
           />
         </div>
 
-        {/* Current Monitoring Station Selector Pill (styled like the green pills in reference) */}
+        {/* Current Monitoring Station Selector Pill */}
         <div className="relative">
           <div className="flex items-center gap-1.5 pl-3 pr-8 py-2 bg-emerald-600 text-white rounded-full font-semibold text-xs shadow-xs hover:bg-emerald-700 transition-colors cursor-pointer">
             <MapPin className="w-3.5 h-3.5" />

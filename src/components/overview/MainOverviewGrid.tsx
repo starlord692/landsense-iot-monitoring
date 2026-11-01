@@ -8,6 +8,7 @@ import {
   ArrowUpRight,
   CheckCircle2,
   Navigation,
+  Radio,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -34,6 +35,7 @@ interface MainOverviewGridProps {
   onSelectNode: (id: string) => void;
   onAcknowledgeAlert: (id: string) => void;
   onNavigateTab: (tab: string) => void;
+  isRealHardware?: boolean;
 }
 
 export const MainOverviewGrid = ({
@@ -46,6 +48,7 @@ export const MainOverviewGrid = ({
   onSelectNode,
   onAcknowledgeAlert,
   onNavigateTab,
+  isRealHardware = false,
 }: MainOverviewGridProps) => {
   const [tempUnit, setTempUnit] = useState<'C' | 'F'>('C');
   const [metricCarouselIndex, setMetricCarouselIndex] = useState<number>(0);
@@ -84,9 +87,9 @@ export const MainOverviewGrid = ({
     {
       label: 'Ground Tilt Inclination',
       value: `+${reading.tilt.magnitude.toFixed(1)}°`,
-      subtitle: 'Estimated Baseline',
+      subtitle: 'ADXL345 Disabled',
       badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
-      description: 'Physical ADXL345 accelerometer pending field deployment.',
+      description: 'Physical ADXL345 accelerometer currently disabled in firmware.',
     },
   ];
 
@@ -100,7 +103,6 @@ export const MainOverviewGrid = ({
     setMetricCarouselIndex((prev) => (prev === carouselItems.length - 1 ? 0 : prev + 1));
   };
 
-  // Stat stack items (matching left column of reference)
   const statStack = [
     { label: 'Sites :', value: `${nodes.length}`, tab: 'map' },
     { label: 'Nodes :', value: `${nodes.filter(n => n.status === 'ONLINE').length} / ${nodes.length}`, tab: 'sensors' },
@@ -171,11 +173,22 @@ export const MainOverviewGrid = ({
           {/* Bottom Condition Bar */}
           <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
             <div>
-              <span className="font-bold text-slate-800">Monsoon Rainfall</span>
-              <p className="text-[11px] text-slate-400">Feels like 29° &bull; High Saturation</p>
+              <span className="font-bold text-slate-800">
+                {isRealHardware ? 'ESP32 Live Feed' : 'Monsoon Rainfall'}
+              </span>
+              <p className="text-[11px] text-slate-400">
+                {isRealHardware ? 'Telemetry streaming every 3s' : 'Feels like 29° • High Saturation'}
+              </p>
             </div>
-            <span className="px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-700 font-semibold text-[11px]">
-              Active Rain
+            <span
+              className={`px-2.5 py-1 rounded-full font-bold text-[11px] flex items-center gap-1 ${
+                isRealHardware
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              <Radio className="w-3 h-3" />
+              {isRealHardware ? 'Hardware Live' : 'Mock Baseline'}
             </span>
           </div>
         </div>
@@ -224,7 +237,7 @@ export const MainOverviewGrid = ({
             </div>
           </div>
 
-          {/* 4 Bottom Metric Columns matching the reference's Soil moisture, Salinity, etc. */}
+          {/* 4 Bottom Metric Columns */}
           <div className="mt-6 pt-4 border-t border-slate-100 grid grid-cols-4 gap-2 text-center text-xs">
             <div>
               <span className="text-[10px] text-slate-400 font-medium block">Moisture</span>
@@ -253,7 +266,7 @@ export const MainOverviewGrid = ({
           </div>
         </div>
 
-        {/* Card 3: Recent Alerts Table (lg:col-span-4) matching "Recent users :" in reference */}
+        {/* Card 3: Recent Alerts Table (lg:col-span-4) */}
         <div className="lg:col-span-4 bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -335,7 +348,7 @@ export const MainOverviewGrid = ({
         </div>
       </div>
 
-      {/* Row 2: Stat Stack, Center Map, and Right Telemetry Chart (matching reference) */}
+      {/* Row 2: Stat Stack, Center Map, and Right Telemetry Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Left: Stat Stack Cards (lg:col-span-3) */}
         <div className="lg:col-span-3 flex flex-col justify-between gap-3.5">
@@ -362,7 +375,6 @@ export const MainOverviewGrid = ({
 
         {/* Center: Monitoring Map Panel (lg:col-span-5) */}
         <div className="lg:col-span-5 bg-white rounded-3xl p-5 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between relative overflow-hidden min-h-[340px]">
-          {/* Topographic and Road Grid SVG Graphic */}
           <div className="absolute inset-0 bg-[#eef6f0] pointer-events-none">
             <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
               <defs>
@@ -378,7 +390,6 @@ export const MainOverviewGrid = ({
             </svg>
           </div>
 
-          {/* Floating Map Nodes & Overlays */}
           <div className="relative z-10 flex items-center justify-between">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/95 backdrop-blur-md border border-slate-200 text-xs font-semibold text-slate-800 shadow-xs">
               <Navigation className="w-3 h-3 text-emerald-600" />
@@ -390,9 +401,7 @@ export const MainOverviewGrid = ({
             </span>
           </div>
 
-          {/* Map Node Pins & Interactive Frosted Floating Cards */}
           <div className="relative z-10 py-6 space-y-4">
-            {/* Node 001 Pill */}
             <div className="flex items-center gap-2 max-w-fit mx-auto cursor-pointer" onClick={() => onSelectNode('node-001')}>
               <div className="px-3 py-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-emerald-200 shadow-sm flex items-center gap-2">
                 <div>
@@ -400,7 +409,7 @@ export const MainOverviewGrid = ({
                   <div className="text-[10px] text-slate-400">Western Slope</div>
                 </div>
                 <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold">
-                  1 Alert
+                  {isRealHardware ? 'Live ESP32' : '1 Alert'}
                 </span>
               </div>
               <div className="relative flex items-center justify-center">
@@ -408,7 +417,6 @@ export const MainOverviewGrid = ({
               </div>
             </div>
 
-            {/* Node 003 Pin */}
             <div className="flex items-center gap-2 ml-auto mr-6 cursor-pointer" onClick={() => onSelectNode('node-003')}>
               <div className="relative flex items-center justify-center">
                 <span className="w-3.5 h-3.5 rounded-full bg-rose-600 ring-4 ring-white shadow-md" />
@@ -424,7 +432,6 @@ export const MainOverviewGrid = ({
               </div>
             </div>
 
-            {/* Node 002 Pin */}
             <div className="flex items-center gap-2 ml-6 cursor-pointer" onClick={() => onSelectNode('node-002')}>
               <div className="relative flex items-center justify-center">
                 <span className="w-3.5 h-3.5 rounded-full bg-purple-600 ring-4 ring-white shadow-md" />
@@ -435,17 +442,15 @@ export const MainOverviewGrid = ({
             </div>
           </div>
 
-          {/* Bottom Coordinate Bar */}
           <div className="relative z-10 px-3 py-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-mono">
             <span>10.8505° N, 76.2711° E</span>
             <span>Elevation: 480m MSL</span>
           </div>
         </div>
 
-        {/* Right: Telemetry Chart Card (lg:col-span-4) matching "Depth wise data :" in reference */}
+        {/* Right: Telemetry Chart Card (lg:col-span-4) */}
         <div className="lg:col-span-4 bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between">
           <div>
-            {/* Header: Title and Metric Selector Pill */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-sm font-bold text-slate-800">Sensor Analytics :</h3>
 
@@ -466,7 +471,6 @@ export const MainOverviewGrid = ({
               </div>
             </div>
 
-            {/* Smooth Light Green Area Chart */}
             <div className="h-56 w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={telemetryHistory} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
@@ -502,7 +506,7 @@ export const MainOverviewGrid = ({
           </div>
 
           <div className="pt-2 text-center text-xs text-slate-400 font-medium">
-            Time-Series Progression &bull; Station Zone 01
+            Time-Series Progression &bull; Updating Live every 3s
           </div>
         </div>
       </div>
