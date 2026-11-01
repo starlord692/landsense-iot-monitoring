@@ -19,3 +19,4 @@ export const ENDPOINTS = {
   ALERTS: `${API_BASE_URL}/alerts`,
   ACKNOWLEDGE_ALERT: (alertId: string) => `${API_BASE_URL}/alerts/${alertId}/acknowledge`,
 };
+

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
-import { OverviewStats } from './components/overview/OverviewStats';
+import { MainOverviewGrid } from './components/overview/MainOverviewGrid';
 import { EnvironmentalGrid } from './components/environmental/EnvironmentalGrid';
 import { RiskMonitoringCard } from './components/risk/RiskMonitoringCard';
 import { SensorFleetMonitoring } from './components/sensors/SensorFleetMonitoring';
@@ -22,6 +22,7 @@ import type { SensorNode } from './types/sensor';
 import type { RiskAssessment } from './types/risk';
 import type { Alert } from './types/alert';
 import type { TelemetryPoint } from './services/mockData';
+import { Server, ShieldCheck, Sliders } from 'lucide-react';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<string>('overview');
@@ -91,12 +92,10 @@ export function App() {
   };
 
   const unreadAlertsCount = alerts.filter(a => !a.isAcknowledged && (a.severity === 'CRITICAL' || a.severity === 'WARNING')).length;
-  const onlineCount = nodes.filter(n => n.status === 'ONLINE').length;
-  const totalCount = nodes.length;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Sidebar Navigation */}
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col font-sans selection:bg-emerald-500/20 selection:text-emerald-900">
+      {/* Slim Light Sidebar */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -106,8 +105,8 @@ export function App() {
       />
 
       {/* Main Content Area */}
-      <div className="lg:pl-72 flex flex-col flex-1">
-        {/* Top Header */}
+      <div className="lg:pl-64 flex flex-col flex-1">
+        {/* Top Navigation */}
         <Header
           onToggleSidebar={() => setSidebarOpen(true)}
           nodes={nodes}
@@ -116,29 +115,34 @@ export function App() {
           lastUpdated={lastUpdated}
           isRefreshing={isRefreshing}
           onRefresh={refreshDashboardData}
-          onlineCount={onlineCount}
-          totalCount={totalCount}
+          unreadAlertsCount={unreadAlertsCount}
         />
 
-        {/* Dynamic Main Body Content */}
-        <main className="p-4 sm:p-6 lg:p-8 space-y-6 flex-1 max-w-7xl w-full mx-auto">
-          {/* Tab 1: Full System Overview */}
+        {/* Dynamic Main Dashboard Body */}
+        <main className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1 max-w-[1440px] w-full mx-auto">
+          {/* Tab 1: Primary Overview (matches the layout of the reference image) */}
           {activeTab === 'overview' && (
-            <div className="space-y-6">
-              {/* 1. Overview Section */}
-              <OverviewStats
+            <div className="space-y-8">
+              {/* Reference-Inspired Hero Layout */}
+              <MainOverviewGrid
                 currentRisk={currentRisk}
+                reading={primaryReading}
                 nodes={nodes}
-                lastUpdated={lastUpdated}
+                alerts={alerts}
+                telemetryHistory={telemetryHistory}
+                selectedNodeId={selectedNodeId}
+                onSelectNode={(id) => setSelectedNodeId(id)}
+                onAcknowledgeAlert={handleAcknowledgeAlert}
+                onNavigateTab={(tab) => setActiveTab(tab)}
               />
 
-              {/* 2. Environmental Monitoring */}
+              {/* Environmental Monitoring Cards */}
               <EnvironmentalGrid reading={primaryReading} />
 
-              {/* 3. Risk Monitoring */}
+              {/* Risk Analysis Card */}
               <RiskMonitoringCard risk={currentRisk} />
 
-              {/* 4. Sensor Monitoring */}
+              {/* Sensor Network Fleet with ADXL345 Standby Status */}
               <SensorFleetMonitoring
                 sensors={hardwareSensors}
                 nodes={nodes}
@@ -146,16 +150,16 @@ export function App() {
                 onSelectNode={(id) => setSelectedNodeId(id)}
               />
 
-              {/* 5. Telemetry Charts */}
+              {/* Telemetry History Analytics */}
               <TelemetryCharts data={telemetryHistory} />
 
-              {/* 6. Recent Alerts */}
+              {/* Alerts and Notifications */}
               <RecentAlertsList
                 alerts={alerts}
                 onAcknowledgeAlert={handleAcknowledgeAlert}
               />
 
-              {/* 7. Monitoring Location Map */}
+              {/* Monitoring Map */}
               <MonitoringLocationMap
                 nodes={nodes}
                 selectedNodeId={selectedNodeId}
@@ -163,26 +167,15 @@ export function App() {
             </div>
           )}
 
-          {/* Tab 2: Environmental Telemetry Focused View */}
-          {activeTab === 'environmental' && (
+          {/* Tab 2: Live Monitoring Focused View */}
+          {activeTab === 'monitoring' && (
             <div className="space-y-6">
               <EnvironmentalGrid reading={primaryReading} />
               <TelemetryCharts data={telemetryHistory} />
             </div>
           )}
 
-          {/* Tab 3: Risk Assessment Focused View */}
-          {activeTab === 'risk' && (
-            <div className="space-y-6">
-              <RiskMonitoringCard risk={currentRisk} />
-              <RecentAlertsList
-                alerts={alerts}
-                onAcknowledgeAlert={handleAcknowledgeAlert}
-              />
-            </div>
-          )}
-
-          {/* Tab 4: Sensor Hardware Fleet Focused View */}
+          {/* Tab 3: Sensor Network Focused View */}
           {activeTab === 'sensors' && (
             <div className="space-y-6">
               <SensorFleetMonitoring
@@ -194,14 +187,18 @@ export function App() {
             </div>
           )}
 
-          {/* Tab 5: Telemetry History Focused View */}
-          {activeTab === 'charts' && (
+          {/* Tab 4: Risk Analysis Focused View */}
+          {activeTab === 'risk' && (
             <div className="space-y-6">
-              <TelemetryCharts data={telemetryHistory} />
+              <RiskMonitoringCard risk={currentRisk} />
+              <RecentAlertsList
+                alerts={alerts}
+                onAcknowledgeAlert={handleAcknowledgeAlert}
+              />
             </div>
           )}
 
-          {/* Tab 6: Alert Center Focused View */}
+          {/* Tab 5: Alerts Focused View */}
           {activeTab === 'alerts' && (
             <div className="space-y-6">
               <RecentAlertsList
@@ -211,24 +208,58 @@ export function App() {
             </div>
           )}
 
-          {/* Tab 7: Location Map Focused View */}
-          {activeTab === 'map' && (
+          {/* Tab 6: History Analytics Focused View */}
+          {activeTab === 'history' && (
             <div className="space-y-6">
-              <MonitoringLocationMap
-                nodes={nodes}
-                selectedNodeId={selectedNodeId}
-              />
+              <TelemetryCharts data={telemetryHistory} />
+            </div>
+          )}
+
+          {/* Tab 7: Settings / System Diagnostics View */}
+          {activeTab === 'settings' && (
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                <div className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600">
+                  <Sliders className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">LANDSense System Settings & Diagnostics</h3>
+                  <p className="text-xs text-slate-400">Microcontroller calibration, API endpoint configuration, and deployment parameters</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+                  <div className="flex items-center gap-2 font-bold text-slate-800">
+                    <Server className="w-4 h-4 text-emerald-600" />
+                    <span>FastAPI Backend Integration</span>
+                  </div>
+                  <p className="text-slate-500 leading-relaxed">
+                    Connected to <code className="px-1.5 py-0.5 rounded bg-white text-emerald-700 font-mono">http://localhost:8000/api/v1</code>. Toggle <code className="px-1.5 py-0.5 rounded bg-white text-slate-700 font-mono">USE_MOCK_DATA = false</code> in <code className="px-1.5 py-0.5 rounded bg-white text-slate-700 font-mono">apiConfig.ts</code> to direct all requests directly to the live Python server.
+                  </p>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+                  <div className="flex items-center gap-2 font-bold text-slate-800">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <span>Hardware Sensor Calibration</span>
+                  </div>
+                  <p className="text-slate-500 leading-relaxed">
+                    FC-37 Rain Gauge trigger threshold: <strong className="text-slate-800">&gt; 35.0 mm/hr</strong>. Capacitive Soil Moisture threshold: <strong className="text-slate-800">&gt; 70%</strong>. ADXL345 Accelerometer status: <span className="font-bold text-amber-700">Hardware Standby (Mocked on I2C 0x53)</span>.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </main>
 
-        {/* Dashboard Footer */}
-        <footer className="border-t border-slate-900 bg-slate-950/80 px-6 py-4 text-center sm:flex sm:items-center sm:justify-between text-xs text-slate-400">
+        {/* Dashboard Clean Light Footer */}
+        <footer className="border-t border-slate-100 bg-white/60 px-8 py-5 text-center sm:flex sm:items-center sm:justify-between text-xs text-slate-400 font-medium">
           <div>
-            <strong>LANDSense</strong> &bull; IoT-Based Landslide Monitoring & Early Warning System
+            <strong className="text-slate-700 font-bold">LANDSense</strong> &bull; IoT-Based Landslide Monitoring & Early Warning System
           </div>
           <div className="mt-2 sm:mt-0 font-mono text-[11px] text-slate-400">
-            FastAPI Schema Compliant &bull; Academic Prototype Release v1.0
+            Academic Prototype Release v2.0 &bull; Light Modern UI
           </div>
         </footer>
       </div>

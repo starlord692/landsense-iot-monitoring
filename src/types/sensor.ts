@@ -63,3 +63,4 @@ export interface HardwareSensorDetail {
   warningThreshold?: string;
   isOperational: boolean;
 }
+

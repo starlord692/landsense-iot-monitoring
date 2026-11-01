@@ -24,3 +24,4 @@ export interface Alert {
   acknowledgedAt?: string | null;
   triggerReadings?: AlertTriggerReadings;
 }
+

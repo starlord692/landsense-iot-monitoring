@@ -27,71 +27,65 @@ export const SensorFleetMonitoring = ({
   const getSensorIcon = (type: string) => {
     switch (type) {
       case 'RAIN':
-        return CloudRain;
+        return { icon: CloudRain, bg: 'bg-blue-50 text-blue-600' };
       case 'SOIL_MOISTURE':
-        return Sprout;
+        return { icon: Sprout, bg: 'bg-emerald-50 text-emerald-600' };
       case 'ENVIRONMENTAL':
-        return Thermometer;
+        return { icon: Thermometer, bg: 'bg-amber-50 text-amber-600' };
       case 'ACCELEROMETER':
-        return Compass;
+        return { icon: Compass, bg: 'bg-purple-50 text-purple-600' };
       default:
-        return Cpu;
+        return { icon: Cpu, bg: 'bg-slate-50 text-slate-600' };
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Section 1: Required Sensor Hardware Modules */}
-      <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      {/* Required Hardware Sensor Modules */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
           <div>
-            <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-cyan-400" />
-              <span>Hardware Sensor Monitoring (IoT Station)</span>
+            <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <Cpu className="w-5 h-5 text-emerald-600" />
+              <span>Hardware Sensor Monitoring (Active IoT Station)</span>
             </h3>
-            <p className="text-xs text-slate-400">
-              Diagnostic status, pin assignments, and live readings across all physical sensing units
+            <p className="text-xs text-slate-400 mt-0.5">
+              Physical sensing units, micro-controller pin interfaces, and connection status
             </p>
           </div>
-          <span className="text-xs text-slate-400 font-mono">
-            Active Prototype Rig
+          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-600 font-mono">
+            Rig Prototype v1.0
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {sensors.map((sensor) => {
-            const Icon = getSensorIcon(sensor.type);
+            const { icon: Icon, bg: iconBg } = getSensorIcon(sensor.type);
             const isConnected = sensor.isOperational;
 
             return (
               <div
                 key={sensor.id}
-                className={`rounded-xl border p-5 transition-all shadow-xs flex flex-col justify-between ${
+                className={`rounded-2xl border p-5 transition-all flex flex-col justify-between ${
                   isConnected
-                    ? 'bg-slate-900/90 border-slate-800 hover:border-slate-700'
-                    : 'bg-slate-900/50 border-amber-500/30 ring-1 ring-amber-500/10'
+                    ? 'bg-slate-50/50 border-slate-200/70 hover:border-slate-300'
+                    : 'bg-amber-50/40 border-amber-200/80'
                 }`}
               >
                 <div>
-                  {/* Card Header: Icon, Name, and Status Badge */}
+                  {/* Header: Icon, Name, and Status */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                          isConnected
-                            ? 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400'
-                            : 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
-                        }`}
-                      >
+                      <div className={`w-11 h-11 rounded-2xl ${iconBg} flex items-center justify-center shadow-2xs`}>
                         <Icon className="w-5 h-5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-bold text-white tracking-tight">
+                          <h4 className="text-sm font-bold text-slate-900">
                             {sensor.name}
                           </h4>
                           {sensor.id === 'sensor-adxl345' && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-700/50 font-mono font-medium">
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">
                               Standby
                             </span>
                           )}
@@ -103,68 +97,62 @@ export const SensorFleetMonitoring = ({
                     {/* Operational Status Pill */}
                     <div>
                       {isConnected ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold font-mono bg-emerald-950/80 text-emerald-400 border border-emerald-800/50">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                           ONLINE
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold font-mono bg-amber-950/80 text-amber-400 border border-amber-700/50">
-                          <XCircle className="w-3.5 h-3.5 text-amber-400" />
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                          <XCircle className="w-3.5 h-3.5 text-amber-600" />
                           UNAVAILABLE / NOT CONNECTED
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Primary Sensor Reading Display */}
-                  <div className="mt-4 p-3 rounded-lg bg-slate-950/60 border border-slate-800/80 flex items-center justify-between">
+                  {/* Output Reading Box */}
+                  <div className="mt-4 p-3.5 rounded-xl bg-white border border-slate-100 flex items-center justify-between shadow-2xs">
                     <div>
-                      <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
                         Live Output Reading
                       </span>
-                      <span
-                        className={`text-lg font-bold font-mono tracking-tight ${
-                          isConnected ? 'text-white' : 'text-amber-400/90'
-                        }`}
-                      >
+                      <span className={`text-lg font-extrabold font-mono ${isConnected ? 'text-slate-900' : 'text-amber-700'}`}>
                         {sensor.currentValue}
                       </span>
                     </div>
+
                     <div className="text-right">
-                      <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
                         Pin Interface
                       </span>
-                      <span className="text-xs font-mono text-cyan-300">
+                      <span className="text-xs font-mono font-semibold text-emerald-700">
                         {sensor.pinInterface}
                       </span>
                     </div>
                   </div>
 
-                  {/* Sensor Description & Special Notice for ADXL345 */}
+                  {/* Description & Notice for ADXL345 */}
                   <div className="mt-3">
-                    <p className="text-xs text-slate-400 leading-relaxed">
+                    <p className="text-xs text-slate-500 leading-relaxed">
                       {sensor.description}
                     </p>
 
                     {sensor.id === 'sensor-adxl345' && (
-                      <div className="mt-2.5 p-2.5 rounded-lg bg-amber-950/30 border border-amber-600/30 text-xs text-amber-300 flex items-start gap-2">
-                        <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <div className="mt-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
+                        <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                         <div>
-                          <strong className="font-semibold text-amber-200">
-                            Prototype Notice:
-                          </strong>{' '}
-                          ADXL345 3-Axis accelerometer is configured on the I2C bus schema
-                          but physically unattached on this breadboard prototype. Ground tilt and
-                          vibration parameters utilize simulated mathematical baseline values until hardware
-                          soldering is finalized.
+                          <strong className="font-semibold text-amber-900">Prototype Notice: </strong>
+                          ADXL345 3-Axis accelerometer is configured on the I2C bus (`0x53`)
+                          but is currently physically unattached on this breadboard prototype. Ground tilt and
+                          vibration parameters utilize simulated mathematical baseline values.
                         </div>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Footer metadata */}
-                <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400 font-mono">
+                {/* Footer Threshold info */}
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-mono">
                   <span>Threshold: {sensor.warningThreshold}</span>
                   <span>Sync: {sensor.lastReadingTime}</span>
                 </div>
@@ -174,24 +162,24 @@ export const SensorFleetMonitoring = ({
         </div>
       </div>
 
-      {/* Section 2: Sensor Fleet Nodes Overview */}
-      <div className="space-y-3 pt-2">
-        <div className="flex items-center justify-between">
+      {/* Sensor Fleet Nodes Overview */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
-            <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
-              <Layers className="w-4 h-4 text-cyan-400" />
+            <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <Layers className="w-5 h-5 text-emerald-600" />
               <span>Multi-Node Fleet Deployment</span>
             </h3>
             <p className="text-xs text-slate-400">
-              Select any remote field node to inspect localized environmental metrics
+              Select any remote field node to view localized telemetry
             </p>
           </div>
-          <span className="text-xs text-slate-400 font-mono">
+          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 font-mono">
             {nodes.length} Registered Stations
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {nodes.map((node) => {
             const isSelected = node.id === selectedNodeId || node.code === selectedNodeId;
             const isOnline = node.status === 'ONLINE';
@@ -200,26 +188,26 @@ export const SensorFleetMonitoring = ({
               <button
                 key={node.id}
                 onClick={() => onSelectNode(node.id)}
-                className={`text-left rounded-xl p-4 border transition-all cursor-pointer ${
+                className={`text-left rounded-2xl p-4 border transition-all cursor-pointer ${
                   isSelected
-                    ? 'bg-slate-800/90 border-cyan-500/50 ring-1 ring-cyan-500/30'
-                    : 'bg-slate-900/80 border-slate-800 hover:border-slate-700 hover:bg-slate-850'
+                    ? 'bg-emerald-50/70 border-emerald-300 ring-2 ring-emerald-500/20 shadow-xs'
+                    : 'bg-slate-50/60 border-slate-100 hover:border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-bold text-cyan-400">
+                  <span className="font-mono text-xs font-bold text-emerald-700">
                     {node.code}
                   </span>
                   <span
-                    className={`inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full border ${
+                    className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
                       isOnline
-                        ? 'bg-emerald-950/70 text-emerald-400 border-emerald-800/40'
-                        : 'bg-rose-950/70 text-rose-400 border-rose-800/40'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-rose-100 text-rose-800'
                     }`}
                   >
                     <span
                       className={`w-1.5 h-1.5 rounded-full ${
-                        isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'
+                        isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
                       }`}
                     />
                     {node.status}
@@ -227,12 +215,12 @@ export const SensorFleetMonitoring = ({
                 </div>
 
                 <div className="mt-2">
-                  <div className="text-sm font-semibold text-white truncate">{node.name}</div>
+                  <div className="text-sm font-bold text-slate-800 truncate">{node.name}</div>
                   <div className="text-xs text-slate-400 truncate">{node.zone}</div>
                 </div>
 
-                <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 font-mono">
-                  <span>Risk: <strong className="text-white">{node.riskLevel}</strong></span>
+                <div className="mt-3 pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-500 font-mono">
+                  <span>Risk: <strong className="text-slate-800">{node.riskLevel}</strong></span>
                   <span>{node.lastCommunication}</span>
                 </div>
               </button>
