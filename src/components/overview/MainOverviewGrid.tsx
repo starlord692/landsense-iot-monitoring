@@ -36,6 +36,7 @@ interface MainOverviewGridProps {
   onAcknowledgeAlert: (id: string) => void;
   onNavigateTab: (tab: string) => void;
   isRealHardware?: boolean;
+  isSimulated?: boolean;
 }
 
 export const MainOverviewGrid = ({
@@ -49,6 +50,7 @@ export const MainOverviewGrid = ({
   onAcknowledgeAlert,
   onNavigateTab,
   isRealHardware = false,
+  isSimulated = false,
 }: MainOverviewGridProps) => {
   const [tempUnit, setTempUnit] = useState<'C' | 'F'>('C');
   const [metricCarouselIndex, setMetricCarouselIndex] = useState<number>(0);
@@ -198,10 +200,17 @@ export const MainOverviewGrid = ({
           <div>
             {/* Top Pill & Arrow Controls */}
             <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100 text-xs font-semibold">
-                <MapPin className="w-3 h-3 text-emerald-600" />
-                {selectedNode.name}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100 text-xs font-semibold">
+                  <MapPin className="w-3 h-3 text-emerald-600" />
+                  {selectedNode.name}
+                </span>
+                {isSimulated && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200 uppercase tracking-wider">
+                    Simulated
+                  </span>
+                )}
+              </div>
 
               <div className="flex items-center gap-1">
                 <button

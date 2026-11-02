@@ -75,6 +75,9 @@ enum RiskLevel {
 };
 
 RiskLevel currentRiskLevel = RISK_NORMAL;
+RiskLevel lastHardwareRiskLevel = RISK_NORMAL;
+bool isScenarioMode = false;
+unsigned long lastScenarioCommandTime = 0;
 
 // Non-blocking blink state & intervals
 unsigned long lastBlinkTime = 0;
@@ -266,8 +269,13 @@ void sendTelemetry() {
     humidity = 72.0;
   }
 
-  // 3. Update Risk State and LEDs
-  currentRiskLevel = calculateRiskLevel(rainRate, soilMoisturePct);
+  // 3. Compute Real Physical Sensor Risk
+  lastHardwareRiskLevel = calculateRiskLevel(rainRate, soilMoisturePct);
+
+  // If not overridden by active scenario demonstration, apply physical risk to LEDs
+  if (!isScenarioMode) {
+    currentRiskLevel = lastHardwareRiskLevel;
+  }
 
   // 4. Print Local Diagnostics to Serial
   Serial.println("\n---------------------------------------------");
@@ -276,6 +284,7 @@ void sendTelemetry() {
   Serial.printf(" - Soil Raw ADC : %d  --> Moisture: %.1f %%\n", rawSoil, soilMoisturePct);
   Serial.printf(" - Temperature  : %.1f °C\n", temperature);
   Serial.printf(" - Humidity     : %.1f %%\n", humidity);
+  Serial.printf(" - Operating Mode: %s\n", isScenarioMode ? "SCENARIO DEMONSTRATION" : "LIVE HARDWARE");
   Serial.printf(" - Risk State   : %s\n", getRiskLevelName(currentRiskLevel));
   Serial.printf(" - LED Indicators: RED(14)=%s, YEL(27)=%s, GRN(26)=%s\n",
     (currentRiskLevel == RISK_CRITICAL) ? "BLINKING" : "OFF",
@@ -293,7 +302,7 @@ void sendTelemetry() {
     http.begin(client, url);
     http.addHeader("Content-Type", "application/json");
 
-    // Build JSON Payload
+    // Build JSON Payload (always contains ACTUAL physical sensor readings)
     JsonDocument doc;
     doc["node_id"]       = NODE_ID;
     doc["rainfall"]      = rainRate;
@@ -315,6 +324,35 @@ void sendTelemetry() {
       Serial.printf("[HTTP Response] Code: %d (Success)\n", httpResponseCode);
       String response = http.getString();
       Serial.println("[Backend Reply] " + response.substring(0, 100) + "...");
+
+      // Parse scenario command returned in telemetry response
+      JsonDocument resDoc;
+      DeserializationError err = deserializeJson(resDoc, response);
+      if (!err) {
+        const char* cmd = resDoc["command"] | "LIVE";
+        if (strcmp(cmd, "SCENARIO") == 0) {
+          const char* scn = resDoc["scenario"] | "NORMAL";
+          isScenarioMode = true;
+          lastScenarioCommandTime = millis();
+
+          if (strcmp(scn, "NORMAL") == 0) {
+            currentRiskLevel = RISK_NORMAL;
+          } else if (strcmp(scn, "WATCH") == 0) {
+            currentRiskLevel = RISK_WATCH;
+          } else if (strcmp(scn, "WARNING") == 0) {
+            currentRiskLevel = RISK_WARNING;
+          } else if (strcmp(scn, "CRITICAL") == 0) {
+            currentRiskLevel = RISK_CRITICAL;
+          }
+          Serial.printf("[Scenario Mode] Physical LEDs forced to: %s\n", scn);
+        } else {
+          if (isScenarioMode) {
+            Serial.println("[Scenario Mode] Returned to LIVE hardware mode.");
+          }
+          isScenarioMode = false;
+          currentRiskLevel = lastHardwareRiskLevel;
+        }
+      }
     } else {
       Serial.printf("[HTTP Error] POST failed, error: %s (Code %d)\n", http.errorToString(httpResponseCode).c_str(), httpResponseCode);
     }
@@ -326,6 +364,13 @@ void sendTelemetry() {
 }
 
 void loop() {
+  // Fail-safe watchdog: if no scenario heartbeat received in 15 seconds, revert to live hardware
+  if (isScenarioMode && (millis() - lastScenarioCommandTime >= 15000)) {
+    Serial.println("[Safety Watchdog] Demonstration session expired or disconnected. Reverting to LIVE hardware mode.");
+    isScenarioMode = false;
+    currentRiskLevel = lastHardwareRiskLevel;
+  }
+
   // Continuous non-blocking LED update
   updateLedIndicators();
 

@@ -8,9 +8,14 @@ import { SensorFleetMonitoring } from './components/sensors/SensorFleetMonitorin
 import { TelemetryCharts } from './components/charts/TelemetryCharts';
 import { RecentAlertsList } from './components/alerts/RecentAlertsList';
 import { MonitoringLocationMap } from './components/map/MonitoringLocationMap';
+import { ScenarioControlBar } from './components/scenario/ScenarioControlBar';
 
 import { sensorService } from './services/sensorService';
 import { alertService } from './services/alertService';
+import {
+  type ScenarioState,
+  SCENARIO_PRESETS,
+} from './services/scenarioService';
 import {
   MOCK_NODES,
   MOCK_RISK_ASSESSMENT,
@@ -43,9 +48,46 @@ export function App() {
   const [isRealHardware, setIsRealHardware] = useState<boolean>(false);
   const [secondsSincePacket, setSecondsSincePacket] = useState<number>(9999);
 
+  // Demonstration Scenario State
+  const [scenarioState, setScenarioState] = useState<ScenarioState>({
+    mode: 'LIVE',
+    scenario: null,
+    risk_score: null,
+    led_status: null,
+    simulated_rainfall: null,
+    simulated_soil_moisture: null,
+    simulated_temperature: null,
+    simulated_humidity: null,
+    activated_at: null,
+    expires_at: null,
+    expires_in_seconds: 0
+  });
+
   // Derive the active node and hardware sensors dynamically
   const selectedNode = nodes.find(n => n.id === selectedNodeId || n.code === selectedNodeId) || nodes[0];
   const hardwareSensors = sensorService.getHardwareSensors(selectedNode, liveReading, isRealHardware);
+
+  // Check if demonstration scenario is active
+  const isScenarioActive = scenarioState.mode === 'SCENARIO' && scenarioState.scenario !== null;
+  const activePreset = isScenarioActive && scenarioState.scenario ? SCENARIO_PRESETS[scenarioState.scenario] : null;
+
+  // Derive display values for overview widgets (clearly distinguishing SIMULATED from REAL)
+  const displayReading: SensorReading = isScenarioActive && activePreset ? {
+    ...liveReading,
+    rainfall: activePreset.rainfall,
+    soilMoisture: activePreset.soilMoisture,
+    temperature: activePreset.temperature,
+    humidity: activePreset.humidity,
+    timestamp: 'Simulated Preset',
+  } : liveReading;
+
+  const displayRisk: RiskAssessment = isScenarioActive && activePreset ? {
+    ...currentRisk,
+    riskScore: activePreset.riskScore,
+    riskLevel: activePreset.name,
+    explanation: activePreset.description,
+    timestamp: 'Simulated Preset',
+  } : currentRisk;
 
   // Function to poll live hardware telemetry every 3 seconds
   const fetchLiveTelemetry = useCallback(async () => {
@@ -56,6 +98,10 @@ export function App() {
       setSecondsSincePacket(data.secondsAgo);
       setLiveReading(data.reading);
       setCurrentRisk(data.risk);
+
+      if (data.scenario) {
+        setScenarioState(data.scenario);
+      }
 
       if (data.history && data.history.length > 0) {
         setTelemetryHistory(data.history);
@@ -146,13 +192,23 @@ export function App() {
 
         {/* Dynamic Main Dashboard Body */}
         <main className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1 max-w-[1440px] w-full mx-auto">
+          {/* Scenario Demonstration & Operating Mode Control Bar */}
+          <ScenarioControlBar
+            scenarioState={scenarioState}
+            onScenarioChange={setScenarioState}
+            actualLiveReading={liveReading}
+            actualLiveRisk={currentRisk}
+            isRealHardware={isRealHardware}
+            secondsSincePacket={secondsSincePacket}
+          />
+
           {/* Tab 1: Primary Overview */}
           {activeTab === 'overview' && (
             <div className="space-y-8">
               {/* Reference-Inspired Hero Layout */}
               <MainOverviewGrid
-                currentRisk={currentRisk}
-                reading={liveReading}
+                currentRisk={displayRisk}
+                reading={displayReading}
                 nodes={nodes}
                 alerts={alerts}
                 telemetryHistory={telemetryHistory}
@@ -160,14 +216,15 @@ export function App() {
                 onSelectNode={(id) => setSelectedNodeId(id)}
                 onAcknowledgeAlert={handleAcknowledgeAlert}
                 onNavigateTab={(tab) => setActiveTab(tab)}
-                isRealHardware={isRealHardware}
+                isRealHardware={isRealHardware && !isScenarioActive}
+                isSimulated={isScenarioActive}
               />
 
               {/* Environmental Monitoring Cards */}
-              <EnvironmentalGrid reading={liveReading} />
+              <EnvironmentalGrid reading={displayReading} isSimulated={isScenarioActive} />
 
               {/* Risk Analysis Card */}
-              <RiskMonitoringCard risk={currentRisk} />
+              <RiskMonitoringCard risk={displayRisk} isSimulated={isScenarioActive} />
 
               {/* Sensor Network Fleet with ADXL345 Standby Status */}
               <SensorFleetMonitoring
@@ -197,7 +254,7 @@ export function App() {
           {/* Tab 2: Live Monitoring Focused View */}
           {activeTab === 'monitoring' && (
             <div className="space-y-6">
-              <EnvironmentalGrid reading={liveReading} />
+              <EnvironmentalGrid reading={displayReading} isSimulated={isScenarioActive} />
               <TelemetryCharts data={telemetryHistory} />
             </div>
           )}
@@ -217,7 +274,7 @@ export function App() {
           {/* Tab 4: Risk Analysis Focused View */}
           {activeTab === 'risk' && (
             <div className="space-y-6">
-              <RiskMonitoringCard risk={currentRisk} />
+              <RiskMonitoringCard risk={displayRisk} isSimulated={isScenarioActive} />
               <RecentAlertsList
                 alerts={alerts}
                 onAcknowledgeAlert={handleAcknowledgeAlert}

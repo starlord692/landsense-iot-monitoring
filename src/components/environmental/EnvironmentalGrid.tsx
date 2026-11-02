@@ -9,9 +9,10 @@ import type { SensorReading } from '../../types/sensor';
 
 interface EnvironmentalGridProps {
   reading: SensorReading;
+  isSimulated?: boolean;
 }
 
-export const EnvironmentalGrid = ({ reading }: EnvironmentalGridProps) => {
+export const EnvironmentalGrid = ({ reading, isSimulated = false }: EnvironmentalGridProps) => {
   const tempStatus =
     reading.temperature > 35 ? 'HIGH' : reading.temperature < 15 ? 'LOW' : 'NOMINAL';
   const humidityStatus =
@@ -102,11 +103,18 @@ export const EnvironmentalGrid = ({ reading }: EnvironmentalGridProps) => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-slate-900 tracking-tight">
-            Environmental Telemetry Cards
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-bold text-slate-900 tracking-tight">
+              Environmental Telemetry Cards
+            </h3>
+            {isSimulated && (
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200 uppercase tracking-wider">
+                Simulated Values
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-400">
-            Real-time atmospheric and geotechnical sensor feeds
+            {isSimulated ? 'Demonstration scenario telemetry (physical sensor readings streaming in background)' : 'Real-time atmospheric and geotechnical sensor feeds'}
           </p>
         </div>
         <span className="text-xs font-mono px-3 py-1 rounded-full bg-slate-100 text-slate-600 font-semibold">

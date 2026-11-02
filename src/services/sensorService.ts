@@ -4,6 +4,7 @@ import type { TelemetryPoint } from './mockData';
 import type { RiskAssessment } from '../types/risk';
 import { MOCK_RISK_ASSESSMENT } from './mockData';
 import { ENDPOINTS, USE_MOCK_DATA } from './apiConfig';
+import type { ScenarioState } from './scenarioService';
 
 export interface LiveTelemetryResponse {
   isBackendConnected: boolean;
@@ -12,6 +13,7 @@ export interface LiveTelemetryResponse {
   reading: SensorReading;
   risk: RiskAssessment;
   history: TelemetryPoint[];
+  scenario?: ScenarioState;
 }
 
 export const sensorService = {
@@ -100,6 +102,7 @@ export const sensorService = {
         reading,
         risk,
         history,
+        scenario: latestData.scenario,
       };
     } catch (err) {
       console.warn('Backend live telemetry fetch error, using fallback:', err);

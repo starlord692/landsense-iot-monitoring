@@ -20,4 +20,6 @@ export const ENDPOINTS = {
   RISK_BY_NODE: (nodeId: string) => `${API_BASE_URL}/risk/${nodeId}`,
   ALERTS: `${API_BASE_URL}/alerts`,
   ACKNOWLEDGE_ALERT: (alertId: string) => `${API_BASE_URL}/alerts/${alertId}/acknowledge`,
+  SCENARIO: `${API_BASE_URL}/scenario`,
+  SCENARIO_RESET: `${API_BASE_URL}/scenario/reset`,
 };

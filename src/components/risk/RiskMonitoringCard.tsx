@@ -12,9 +12,10 @@ import { RISK_THRESHOLDS } from '../../types/risk';
 
 interface RiskMonitoringCardProps {
   risk: RiskAssessment;
+  isSimulated?: boolean;
 }
 
-export const RiskMonitoringCard = ({ risk }: RiskMonitoringCardProps) => {
+export const RiskMonitoringCard = ({ risk, isSimulated = false }: RiskMonitoringCardProps) => {
   const currentThreshold = RISK_THRESHOLDS[risk.riskLevel] || RISK_THRESHOLDS.NORMAL;
 
   const radius = 58;
@@ -103,9 +104,14 @@ export const RiskMonitoringCard = ({ risk }: RiskMonitoringCardProps) => {
             <h3 className="text-lg font-bold text-slate-900 tracking-tight">
               Landslide Risk Analysis & Contributing Factors
             </h3>
+            {isSimulated && (
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200 uppercase tracking-wider">
+                Simulated Scenario
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Deterministic multi-factor evaluation combining live rainfall, soil saturation, and slope inclination
+            {isSimulated ? 'Demonstration scenario risk level active — driving ESP32 physical LEDs' : 'Deterministic multi-factor evaluation combining live rainfall, soil saturation, and slope inclination'}
           </p>
         </div>
 

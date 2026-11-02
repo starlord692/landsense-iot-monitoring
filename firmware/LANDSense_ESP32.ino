@@ -73,6 +73,9 @@ enum RiskLevel {
 };
 
 RiskLevel currentRiskLevel = RISK_NORMAL;
+RiskLevel lastHardwareRiskLevel = RISK_NORMAL;
+bool isScenarioMode = false;
+unsigned long lastScenarioCommandTime = 0;
 
 // Non-blocking blink state & intervals
 unsigned long lastBlinkTime = 0;
@@ -90,6 +93,7 @@ const int SOIL_WET_RAW = 1400;
 const int RAIN_DRY_RAW = 4095;
 const int RAIN_WET_RAW = 1000;
 
+// Helper: Convert soil raw ADC to percentage (0 - 100%)
 float calculateSoilMoisture(int rawValue) {
   if (rawValue >= SOIL_DRY_RAW) return 0.0;
   if (rawValue <= SOIL_WET_RAW) return 100.0;
@@ -97,6 +101,7 @@ float calculateSoilMoisture(int rawValue) {
   return constrain(pct, 0.0, 100.0);
 }
 
+// Helper: Convert rain sensor raw ADC to mm/hr estimation (0 to 60 mm/hr)
 float calculateRainfallRate(int rawValue) {
   if (rawValue >= RAIN_DRY_RAW - 200) return 0.0;
   if (rawValue <= RAIN_WET_RAW) return 55.0;
@@ -104,6 +109,7 @@ float calculateRainfallRate(int rawValue) {
   return constrain(rate, 0.0, 60.0);
 }
 
+// Risk calculation matching the backend RiskService engine
 RiskLevel calculateRiskLevel(float rainfall, float soilMoisture, float groundTilt = 0.0, float vibration = 0.0) {
   int rainfallScore = min(30, (int)((rainfall / 50.0) * 30.0));
   int moistureScore = min(25, (int)((soilMoisture / 100.0) * 25.0));
@@ -129,6 +135,13 @@ const char* getRiskLevelName(RiskLevel level) {
   }
 }
 
+/**
+ * Non-blocking LED update routine:
+ * - NORMAL   : Green ON, Yellow & Red OFF
+ * - WATCH    : Yellow ON, Green & Red OFF
+ * - WARNING  : Yellow Blinking (500ms), Green & Red OFF
+ * - CRITICAL : Red Blinking (250ms), Green & Yellow OFF
+ */
 void updateLedIndicators() {
   unsigned long now = millis();
 
@@ -180,7 +193,7 @@ void connectToWiFi() {
 
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 25) {
-    updateLedIndicators();
+    updateLedIndicators(); // Keep LEDs alive during connection
     delay(500);
     Serial.print(".");
     attempts++;
@@ -213,47 +226,63 @@ void setup() {
   Serial.println(" - Buzzer       : NOT INSTALLED / REMOVED");
   Serial.println("==================================================\n");
 
+  // Configure LED pins
   pinMode(PIN_LED_RED, OUTPUT);
   pinMode(PIN_LED_YELLOW, OUTPUT);
   pinMode(PIN_LED_GREEN, OUTPUT);
 
+  // Initial state: Green ON
   digitalWrite(PIN_LED_RED, LOW);
   digitalWrite(PIN_LED_YELLOW, LOW);
   digitalWrite(PIN_LED_GREEN, HIGH);
 
+  // Configure ADC inputs
   pinMode(PIN_RAIN_SENSOR, INPUT);
   pinMode(PIN_SOIL_SENSOR, INPUT);
 
+  // Initialize DHT11
   dht.begin();
   Serial.println("[Hardware] DHT11 sensor initialized.");
 
+  // Connect to Wi-Fi
   connectToWiFi();
 }
 
 void sendTelemetry() {
+  // 1. Read Analog Sensors
   int rawRain = analogRead(PIN_RAIN_SENSOR);
   int rawSoil = analogRead(PIN_SOIL_SENSOR);
 
   float rainRate = calculateRainfallRate(rawRain);
   float soilMoisturePct = calculateSoilMoisture(rawSoil);
 
+  // 2. Read DHT11
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
 
+  // Validate DHT readings
   if (isnan(temperature) || isnan(humidity)) {
     Serial.println("[Hardware Warning] DHT11 read failed, using baseline.");
     temperature = 26.5;
     humidity = 72.0;
   }
 
-  currentRiskLevel = calculateRiskLevel(rainRate, soilMoisturePct);
+  // 3. Compute Real Physical Sensor Risk
+  lastHardwareRiskLevel = calculateRiskLevel(rainRate, soilMoisturePct);
 
+  // If not overridden by active scenario demonstration, apply physical risk to LEDs
+  if (!isScenarioMode) {
+    currentRiskLevel = lastHardwareRiskLevel;
+  }
+
+  // 4. Print Local Diagnostics to Serial
   Serial.println("\n---------------------------------------------");
   Serial.printf("[Sensor Data] Time: %lu ms\n", millis());
   Serial.printf(" - Rain Raw ADC : %d  --> Rate: %.1f mm/hr\n", rawRain, rainRate);
   Serial.printf(" - Soil Raw ADC : %d  --> Moisture: %.1f %%\n", rawSoil, soilMoisturePct);
   Serial.printf(" - Temperature  : %.1f °C\n", temperature);
   Serial.printf(" - Humidity     : %.1f %%\n", humidity);
+  Serial.printf(" - Operating Mode: %s\n", isScenarioMode ? "SCENARIO DEMONSTRATION" : "LIVE HARDWARE");
   Serial.printf(" - Risk State   : %s\n", getRiskLevelName(currentRiskLevel));
   Serial.printf(" - LED Indicators: RED(14)=%s, YEL(27)=%s, GRN(26)=%s\n",
     (currentRiskLevel == RISK_CRITICAL) ? "BLINKING" : "OFF",
@@ -262,6 +291,7 @@ void sendTelemetry() {
   );
   Serial.println(" - ADXL345      : DISABLED (0.0° tilt, 0.0g vibration)");
 
+  // 5. Send HTTP POST to FastAPI Backend
   if (WiFi.status() == WL_CONNECTED) {
     WiFiClient client;
     HTTPClient http;
@@ -270,12 +300,13 @@ void sendTelemetry() {
     http.begin(client, url);
     http.addHeader("Content-Type", "application/json");
 
+    // Build JSON Payload (always contains ACTUAL physical sensor readings)
     JsonDocument doc;
     doc["node_id"]       = NODE_ID;
     doc["rainfall"]      = rainRate;
     doc["soil_moisture"] = soilMoisturePct;
-    doc["ground_tilt"]   = 0.0;
-    doc["vibration"]     = 0.0;
+    doc["ground_tilt"]   = 0.0; // ADXL345 disabled
+    doc["vibration"]     = 0.0; // ADXL345 disabled
     doc["temperature"]   = temperature;
     doc["humidity"]      = humidity;
 
@@ -291,6 +322,35 @@ void sendTelemetry() {
       Serial.printf("[HTTP Response] Code: %d (Success)\n", httpResponseCode);
       String response = http.getString();
       Serial.println("[Backend Reply] " + response.substring(0, 100) + "...");
+
+      // Parse scenario command returned in telemetry response
+      JsonDocument resDoc;
+      DeserializationError err = deserializeJson(resDoc, response);
+      if (!err) {
+        const char* cmd = resDoc["command"] | "LIVE";
+        if (strcmp(cmd, "SCENARIO") == 0) {
+          const char* scn = resDoc["scenario"] | "NORMAL";
+          isScenarioMode = true;
+          lastScenarioCommandTime = millis();
+
+          if (strcmp(scn, "NORMAL") == 0) {
+            currentRiskLevel = RISK_NORMAL;
+          } else if (strcmp(scn, "WATCH") == 0) {
+            currentRiskLevel = RISK_WATCH;
+          } else if (strcmp(scn, "WARNING") == 0) {
+            currentRiskLevel = RISK_WARNING;
+          } else if (strcmp(scn, "CRITICAL") == 0) {
+            currentRiskLevel = RISK_CRITICAL;
+          }
+          Serial.printf("[Scenario Mode] Physical LEDs forced to: %s\n", scn);
+        } else {
+          if (isScenarioMode) {
+            Serial.println("[Scenario Mode] Returned to LIVE hardware mode.");
+          }
+          isScenarioMode = false;
+          currentRiskLevel = lastHardwareRiskLevel;
+        }
+      }
     } else {
       Serial.printf("[HTTP Error] POST failed, error: %s (Code %d)\n", http.errorToString(httpResponseCode).c_str(), httpResponseCode);
     }
@@ -302,14 +362,23 @@ void sendTelemetry() {
 }
 
 void loop() {
+  // Fail-safe watchdog: if no scenario heartbeat received in 15 seconds, revert to live hardware
+  if (isScenarioMode && (millis() - lastScenarioCommandTime >= 15000)) {
+    Serial.println("[Safety Watchdog] Demonstration session expired or disconnected. Reverting to LIVE hardware mode.");
+    isScenarioMode = false;
+    currentRiskLevel = lastHardwareRiskLevel;
+  }
+
+  // Continuous non-blocking LED update
   updateLedIndicators();
 
   unsigned long currentMillis = millis();
 
+  // Transmit every 3 seconds
   if (currentMillis - lastSendTime >= SEND_INTERVAL) {
     lastSendTime = currentMillis;
     sendTelemetry();
   }
 
-  delay(10);
+  delay(10); // Small non-blocking yield for FreeRTOS background tasks
 }
