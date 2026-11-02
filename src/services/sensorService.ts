@@ -3,7 +3,7 @@ import { MOCK_NODES, MOCK_TELEMETRY_HISTORY, MOCK_PRIMARY_READING } from './mock
 import type { TelemetryPoint } from './mockData';
 import type { RiskAssessment } from '../types/risk';
 import { MOCK_RISK_ASSESSMENT } from './mockData';
-import { ENDPOINTS, USE_MOCK_DATA } from './apiConfig';
+import { ENDPOINTS, USE_MOCK_DATA, API_FETCH_HEADERS } from './apiConfig';
 import type { ScenarioState } from './scenarioService';
 
 export interface LiveTelemetryResponse {
@@ -26,7 +26,7 @@ export const sensorService = {
     }
 
     try {
-      const response = await fetch(ENDPOINTS.SENSORS);
+      const response = await fetch(ENDPOINTS.SENSORS, { headers: API_FETCH_HEADERS });
       if (!response.ok) {
         throw new Error(`Failed to fetch sensor nodes: ${response.statusText}`);
       }
@@ -47,7 +47,7 @@ export const sensorService = {
     }
 
     try {
-      const response = await fetch(ENDPOINTS.SENSOR_DETAIL(nodeId));
+      const response = await fetch(ENDPOINTS.SENSOR_DETAIL(nodeId), { headers: API_FETCH_HEADERS });
       if (!response.ok) {
         throw new Error(`Failed to fetch node ${nodeId}`);
       }
@@ -75,8 +75,8 @@ export const sensorService = {
 
     try {
       const [latestRes, historyRes] = await Promise.all([
-        fetch(ENDPOINTS.READINGS_LATEST(nodeId)),
-        fetch(ENDPOINTS.READINGS_HISTORY(nodeId, 20)),
+        fetch(ENDPOINTS.READINGS_LATEST(nodeId), { headers: API_FETCH_HEADERS }),
+        fetch(ENDPOINTS.READINGS_HISTORY(nodeId, 20), { headers: API_FETCH_HEADERS }),
       ]);
 
       if (!latestRes.ok) {
@@ -196,7 +196,7 @@ export const sensorService = {
     }
 
     try {
-      const response = await fetch(ENDPOINTS.READINGS_HISTORY(nodeId || 'NODE-001', 20));
+      const response = await fetch(ENDPOINTS.READINGS_HISTORY(nodeId || 'NODE-001', 20), { headers: API_FETCH_HEADERS });
       if (!response.ok) {
         throw new Error('Failed to fetch historical readings');
       }

@@ -1,4 +1,4 @@
-import { ENDPOINTS, USE_MOCK_DATA } from './apiConfig';
+import { ENDPOINTS, USE_MOCK_DATA, API_FETCH_HEADERS } from './apiConfig';
 
 export type RiskScenarioType = 'NORMAL' | 'WATCH' | 'WARNING' | 'CRITICAL';
 export type ModeType = 'LIVE' | 'SCENARIO';
@@ -108,7 +108,7 @@ export const scenarioService = {
     }
 
     try {
-      const response = await fetch(ENDPOINTS.SCENARIO);
+      const response = await fetch(ENDPOINTS.SCENARIO, { headers: API_FETCH_HEADERS });
       if (!response.ok) {
         throw new Error(`Failed to fetch scenario state: ${response.status}`);
       }
@@ -144,7 +144,8 @@ export const scenarioService = {
       const response = await fetch(ENDPOINTS.SCENARIO, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...API_FETCH_HEADERS,
         },
         body: JSON.stringify({
           mode: 'SCENARIO',
