@@ -4,7 +4,7 @@
  */
 
 const DEFAULT_LOCAL_URL = 'http://localhost:8000/api/v1';
-export const DEFAULT_TUNNEL_URL = 'https://landsense-api-live.loca.lt/api/v1';
+export const DEFAULT_TUNNEL_URL = 'https://nevertheless-until-heat-antique.trycloudflare.com/api/v1';
 
 /**
  * Resolves the active backend API Base URL:

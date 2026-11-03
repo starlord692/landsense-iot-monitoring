@@ -9,7 +9,7 @@ import {
   Globe,
   Radio
 } from 'lucide-react';
-import { getApiBaseUrl, setApiBaseUrl, API_FETCH_HEADERS } from '../../services/apiConfig';
+import { getApiBaseUrl, setApiBaseUrl, API_FETCH_HEADERS, DEFAULT_TUNNEL_URL } from '../../services/apiConfig';
 
 interface ServerConnectionModalProps {
   isOpen: boolean;
@@ -161,8 +161,8 @@ export const ServerConnectionModal = ({
 
             <button
               onClick={() => {
-                setUrlInput('https://landsense-api-live.loca.lt/api/v1');
-                testConnection('https://landsense-api-live.loca.lt/api/v1');
+                setUrlInput(DEFAULT_TUNNEL_URL);
+                testConnection(DEFAULT_TUNNEL_URL);
               }}
               className="px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold text-[11px] transition-colors cursor-pointer flex items-center gap-1.5"
             >
