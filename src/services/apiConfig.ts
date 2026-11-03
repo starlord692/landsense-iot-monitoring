@@ -17,7 +17,12 @@ export function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
     const saved = localStorage.getItem('landsense_api_base_url');
     if (saved && saved.trim()) {
-      return saved.trim().replace(/\/+$/, '');
+      // Automatically purge legacy/broken localtunnel URLs
+      if (saved.includes('loca.lt')) {
+        localStorage.removeItem('landsense_api_base_url');
+      } else {
+        return saved.trim().replace(/\/+$/, '');
+      }
     }
   }
 
